@@ -1,32 +1,37 @@
-import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
+// src/App.tsx
+import React, { useState } from 'react';
+import { SafeAreaView, StatusBar, StyleSheet } from 'react-native';
+import { DashboardScreen } from './src/screens/DashboardScreen';
+import { DeviceDetailScreen } from './src/screens/DeviceDetailsScreen';
 
+/**
+ * Root component.
+ *
+ * Uses a `useState` toggle for navigation between two screens. In a larger
+ * app this would be replaced with `@react-navigation/native-stack` for
+ * typed route params, deep links, and browser back-button support.
+ */
 export default function App() {
+  const [selectedDeviceId, setSelectedDeviceId] = useState<string | null>(null);
+
   return (
-    <View style={styles.container}>
-      <StatusBar style="dark" />
-      <Text style={styles.title}>OtO React Native Interview</Text>
-      <Text style={styles.subtitle}>Build your solution here.</Text>
-    </View>
+    <SafeAreaView style={styles.appContainer}>
+      <StatusBar barStyle="dark-content" />
+      {selectedDeviceId ? (
+        <DeviceDetailScreen
+          deviceId={selectedDeviceId}
+          onBack={() => setSelectedDeviceId(null)}
+        />
+      ) : (
+        <DashboardScreen onSelectDevice={(id) => setSelectedDeviceId(id)} />
+      )}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  appContainer: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 24,
-    backgroundColor: '#ffffff',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: '#1c2430',
-  },
-  subtitle: {
-    marginTop: 8,
-    fontSize: 16,
-    color: '#5a6575',
+    backgroundColor: '#FFFFFF',
   },
 });

@@ -1,86 +1,110 @@
-# OtO React Native Interview Starter
+# OtO Lawn Care — Irrigation Dashboard
 
-Build a simple dashboard for a customer-facing irrigation app.
+A small React Native (web) irrigation dashboard built for the OtO take-home
+interview. The app lets a signed-in user review their account, inspect
+devices and their zones, and rename a device — with proper loading, error,
+and offline states throughout.
 
-## Product Brief
+The original brief lives in [`README_TaskDescription.md`](./README_TaskDescription.md).
 
-Build a small authenticated irrigation dashboard experience for web. The user
-should be able to review their account, inspect devices and zones, and rename a
-device from its detail screen.
+## Quick start
 
-## Requirements
-
-### Dashboard
-
-- Create a screen for the authenticated user.
-- Display the user's name and location at the top of the dashboard.
-- List the devices that belong to the user.
-- For each device, display the device name and the number of zones it contains.
-- Display a loading state while account or device data is being fetched.
-- Display an error state if the account or device request fails.
-
-### Device Detail
-
-- Allow the user to open a device detail screen.
-- On the device detail screen, display the device information and its zones.
-
-### Rename Device
-
-- Allow the user to edit the device name.
-- Save the updated name through the mock API.
-- Show a pending state while the request is in progress.
-- If the request succeeds, update the UI to reflect the new device name.
-- If the request fails, show an appropriate error message or error state.
-
-### Offline Devices
-
-- Some devices may be offline.
-- Make it obvious when a device is offline.
-- Preserve the offline status in both the dashboard and device detail views.
-
-## Assumptions
-
-- The user is already logged in.
-- Authentication is out of scope for this exercise.
-- You may assume the account id is already available when loading data.
-- Use `account-1` as the current account id.
-- Optimize the experience for a mobile portrait layout.
-
-## Provided
-
-- TypeScript support
-- Shared data types in `src/models/types.ts`
-- A mock `/api` surface that must be called with `fetch`
-- Seed data that includes online and offline devices
-- Lint, format, and typecheck scripts
-
-## Mock API
-
-The starter includes a mock API for web development. It must be called with
-`fetch`.
-
-Available endpoints:
-
-- `GET /api/accounts/:accountId`
-- `GET /api/accounts/:accountId/devices`
-- `GET /api/devices/:deviceId`
-- `GET /api/devices/:deviceId/zones`
-- `PATCH /api/devices/:deviceId`
-
-`PATCH /api/devices/:deviceId` expects a JSON body with:
-
-```json
-{
-  "name": "Front Garden"
-}
+```bash
+npm install
+npm run web            # dev server on http://localhost:8081
 ```
 
-The mock data is shaped like:
+Production build (silences the "development build" warning):
 
-- `Account -> Device -> Zone`
+```bash
+npx expo start --web --no-dev --minify
+```
 
-The API is normalized around relationships:
+## Scripts
 
-- `Account` owns `deviceIds`
-- `Device` owns `zoneIds`
-- `Zone` belongs to a device
+| Command | Purpose |
+| --- | --- |
+| `npm run web` | Start Expo dev server (web). |
+| `npm run typecheck` | Run TypeScript in `--noEmit` mode. |
+| `npm run lint` | ESLint over `src/`. |
+| `npm run format:check` | Prettier check. |
+| `npm run format` | Prettier write. |
+| `npm test` | Run the Jest suite. |
+
+## Project structure
+
+```
+src/
+├── api/
+│   ├── client.ts          # fetch wrapper + typed ApiError
+│   ├── endpoints.ts       # typed calls to /api
+│   └── __tests__/         # client + ApiError tests
+├── hooks/
+│   ├── useDashboard.ts    # account + devices fetch
+│   ├── useDeviceDetail.ts # device + zones fetch, rename mutation
+│   └── __tests__/         # hook tests
+├── models/
+│   └── types.ts           # provided shared types
+└── screens/
+    ├── DashboardScreen.tsx
+    └── DeviceDetailsScreen.tsx
+App.tsx                    # simple useState-based routing
+```
+
+## Architecture notes
+
+- **API layer.** [`src/api/client.ts`](./src/api/client.ts) is a single
+  `fetch` wrapper that centralises the `/api` prefix, JSON headers,
+  `AbortController` timeouts, and error normalisation. All failures
+  become a typed `ApiError` carrying `status`, `endpoint`, and an
+  `isNetworkError` flag so the UI can differentiate offline from HTTP
+  errors.
+- **Hooks own async state.** Screens stay presentational; hooks expose
+  `isLoading`, `isRefreshing`, `error`, and mutation state.
+- **Optimistic rename.** [`useDeviceDetail`](./src/hooks/useDeviceDetail.ts)
+  updates the local device immediately, then rolls back on failure and
+  surfaces `updateError` for inline display.
+- **Routing.** Two screens, so `App.tsx` uses a `useState` toggle rather
+  than pulling in React Navigation. Easy to swap for
+  `@react-navigation/native-stack` when the app grows.
+
+## Accessibility
+
+- `accessibilityRole` and `accessibilityLabel` on every interactive
+  element, header, and status region.
+- Loading spinners announce with `progressbar`; errors use `alert` with
+  `accessibilityLiveRegion` so screen readers pick up async changes.
+- Redundant decorative pills and dots are hidden from the accessibility
+  tree (`accessibilityElementsHidden`) so users hear one clear label per
+  card.
+- Save button reports `accessibilityState={{ busy }}` during the PATCH
+  request.
+
+## Tests
+
+Jest 29 + `@testing-library/react` (hook rendering under jsdom).
+
+```
+Test Suites: 3 passed, 3 total
+Tests:       17 passed, 17 total
+```
+
+- **`client.test.ts`** — `ApiError` shape, GET URL/headers/parsing, HTTP
+  error mapping, statusText fallback, network failure → `isNetworkError`,
+  PATCH body serialisation, validation errors.
+- **`useDashboard.test.ts`** — parallel fetch, `ApiError` surfacing,
+  generic error fallback, `refresh()` toggles `isRefreshing`.
+- **`useDeviceDetail.test.ts`** — parallel device+zones fetch, fetch
+  error, optimistic rename success, rollback on failure, empty-name
+  guard.
+
+## What I'd add with more time
+
+- Component tests (blocked on `@testing-library/react-native` stabilising
+  under React 19; hooks contain the real logic anyway).
+- React Navigation stack with typed route params + deep links.
+- Expanded device info card (location, state, battery, updatedAt).
+- Cancel button and inline validation on rename.
+- Shared cache (React Query / SWR) so a rename in Detail propagates to
+  Dashboard without a manual refresh.
+- Colour-contrast pass on the offline red text — likely fails WCAG AA.
